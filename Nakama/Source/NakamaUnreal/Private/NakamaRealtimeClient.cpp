@@ -989,7 +989,25 @@ void UNakamaRealtimeClient::SendMatchData(
 	}
 
 	// This does not have callbacks
-	SendMessageWithEnvelope(TEXT("match_data_send"), MatchDataSend, {}, {});
+	// SendMessageWithEnvelope(TEXT("match_data_send"), MatchDataSend, {}, {});
+	if (!WebSocket || !WebSocket->IsConnected())
+	{
+		FNakamaRtError Error;
+		Error.Message = TEXT("WebSocket is not valid or not connected.");
+		Error.Code = ENakamaRtErrorCode::TRANSPORT_ERROR;
+		if (ErrorCallback)
+			ErrorCallback(Error);
+		return;
+	}
+
+	const TSharedPtr<FJsonObject> Envelope = MakeShareable(new FJsonObject());
+	Envelope->SetObjectField(TEXT("match_data_send"), FNakamaUtils::CreateMatchDataSendJson(MatchId, OpCode, Data, Presences));
+	
+	FString JsonPayload = FNakamaUtils::EncodeJson(Envelope);
+	WebSocket->Send(JsonPayload);
+
+	if (SuccessCallback)
+		SuccessCallback();
 }
 
 void UNakamaRealtimeClient::LeaveMatch(
